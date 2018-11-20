@@ -42,6 +42,7 @@
 	var notes = [];
 	var num_time_cells = 0;
 	function set_seek(s, draw){
+		s %= num_time_cells;
 		if(draw && !is_drawing) {
 			is_drawing = true;
 			prev_seek = seek;
