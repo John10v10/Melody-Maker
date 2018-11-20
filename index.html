@@ -19,7 +19,7 @@
 	<button onclick="showCode()" style="position: fixed; bottom: 3em; left: 18em;" >Edit by Code</button>
 	<div id="CodeCurtain" style="display:none; background-color: rgba(255,255,255,0.75);width: 100%;height: 100%;align-content: center;position: fixed;left: 0;top: 0;">
 		<center>
-			<div style="width: 50%;background-color: pink;border: 5px outset orange;border-radius: 20px;padding: 1em;margin-top: 35%;">
+			<div style="width: 50%;background-color: pink;border: 5px outset orange;border-radius: 20px;padding: 1em; margin-top: 12em;">
 				<textarea id="codeBox" style="width: 100%;height: 200px;resize: none;border: 15px inset yellow;"></textarea>
 				<br>
 				<br>
@@ -240,12 +240,12 @@
 		document.getElementById("CodeCurtain").style.display = "none";
 		var codeBox = document.getElementById("codeBox");
 		var code = LZString.decompressFromUTF16(codeBox.value);
-		document.getElementById("Tempo").value = tempo = code.charCodeAt(0)-0x20+40;
-		rate = 500 * (15/tempo);
 		if ((code == null) || (code.length = '')){
 			alert("Invalid Code");
 			return;
 		}
+		document.getElementById("Tempo").value = tempo = code.charCodeAt(0)-0x20+40;
+		rate = 500 * (15/tempo);
 		clearAllNotes();
 		for(var i = 1; i+2 < code.length; i+=3){
 			var row = code.charCodeAt(i)-0x20;
