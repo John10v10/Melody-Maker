@@ -1,0 +1,271 @@
+<head>
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/pieroxy/lz-string/libs/lz-string.js"></script>
+	<style>
+		table, th, td {
+			user-select: none;
+			border: 1px solid black;
+			padding: 0;
+		}
+	</style>
+	<title>Melody Maker</title>
+</head>
+<script>var is_mouse_down = false; var rate = 500/8; var tempo = 120;</script>
+<body onmousedown="is_mouse_down = true" onmouseup="is_mouse_down = false">
+	<table id="NoteTable">
+	</table>
+	<button onclick="playButtonClicked(this)" style="position: fixed; bottom: 3em; left: 3em;">Play</button>
+	<span style="position: fixed; bottom: 2.6em; left: 6em;">Tempo:</span>
+	<input type="number" id="Tempo" onchange="tempo = this.value; rate = 500 * (15/tempo);" style="position: fixed; bottom: 3em; left: 12em;" min="40" max="200" value="120">
+	<button onclick="showCode()" style="position: fixed; bottom: 3em; left: 18em;" >Edit by Code</button>
+	<div id="CodeCurtain" style="display:none; background-color: rgba(255,255,255,0.75);width: 100%;height: 100%;align-content: center;position: fixed;left: 0;top: 0;">
+		<center>
+			<div style="width: 50%;background-color: pink;border: 5px outset orange;border-radius: 20px;padding: 1em;margin-top: 35%;">
+				<textarea id="codeBox" style="width: 100%;height: 200px;resize: none;border: 15px inset yellow;"></textarea>
+				<br>
+				<br>
+				<span id="codeCharCount"></span>
+				<br>
+				<button onclick="copyCode()">Copy</button>
+				<button onclick="hideCode()">Load</button>
+			</div>
+		</center>
+	</div>
+</body>
+<script>
+	var table = document.getElementById("NoteTable");
+	var is_playing = false;
+	var context = new AudioContext();
+	var seek = 0;
+	var prev_seek = 0;
+	var num_rows = 0;
+	var is_drawing = false;
+	var notes = [];
+	var num_time_cells = 0;
+	function set_seek(s, draw){
+		if(draw && !is_drawing) {
+			is_drawing = true;
+			prev_seek = seek;
+			for(var row = 0; row < num_rows; ++row){
+				var div_element = document.getElementById("NOTE_"+prev_seek+"_"+row);
+				if (div_element != null)div_element.style.backgroundColor = (s == div_element.time) ? (div_element.noteOn ? "yellow" : "yellowgreen") : (div_element.noteOn ? "red" : "thistle");
+				div_element = document.getElementById("NOTE_"+s+"_"+row);
+				if (div_element != null)div_element.style.backgroundColor = (s == div_element.time) ? (div_element.noteOn ? "yellow" : "yellowgreen") : (div_element.noteOn ? "red" : "thistle");
+			}
+			is_drawing = false;
+		}
+		seek = s;
+	}
+	var next_wait = Date.now();
+	function play_cell(){
+		if(!is_playing)return;
+		while(Date.now()<next_wait){}
+		next_wait+=rate;
+		setTimeout(play_cell, 0);
+		set_seek(seek+1, true);
+		for(var row = 0; row < num_rows; ++row){
+			var div_element = document.getElementById("NOTE_"+seek+"_"+row);
+			if((div_element != null) && div_element.noteOn){
+				if(notes[row] == null){
+					notes[row] = context.createOscillator();
+					notes[row].type = "square";
+					notes[row].gain = context.createGain();
+					notes[row].gain.connect(context.destination);
+					notes[row].gain.gain.value = 0.1;
+					notes[row].connect(notes[row].gain);
+					notes[row].frequency.value = get_frequency(div_element);
+					notes[row].start();
+				}
+			}
+			else{
+				if(notes[row] != null){
+					notes[row].stop();
+					notes[row].gain.disconnect(context.destination);
+					notes[row].disconnect(notes[row].gain);
+					notes[row] = null;
+				}
+			}
+		}
+	}
+	function playButtonClicked(b){
+		is_playing = !is_playing;
+		if(is_playing)
+		{
+			b.innerHTML = "Stop";
+			set_seek(-1, false);
+			next_wait = Date.now();
+			play_cell();
+		}
+		else
+		{
+			b.innerHTML = "Play";
+			for(var i = 0; i < num_rows; ++i){
+				if(notes[i] != null){
+					notes[i].stop();
+					notes[i].gain.disconnect(context.destination);
+					notes[i].disconnect(notes[i].gain);
+					notes[i] = null;
+				}
+			}
+			set_seek(0, true);
+		}
+	}
+	var setNoteOn = false;
+	function addListener(element, eventName, handler) {
+	  if (element.addEventListener) {
+		element.addEventListener(eventName, handler, false);
+	  }
+	  else if (element.attachEvent) {
+		element.attachEvent('on' + eventName, handler);
+	  }
+	  else {
+		element['on' + eventName] = handler;
+	  }
+	}
+	function get_frequency(e){
+		return 440 * Math.pow(2, ((26-e.pitch)/12));
+	}
+	function noteEnter(e){
+		if (is_mouse_down){e.target.noteOn = setNoteOn;
+			if (setNoteOn){
+				var note = context.createOscillator();
+				note.type = "square";
+				note.frequency.value = get_frequency(e.target);
+				var g = context.createGain();
+				g.connect(context.destination);
+				note.connect(g);
+				note.start();
+				g.gain.exponentialRampToValueAtTime(0.00001, context.currentTime + 2);
+				setTimeout(function(){note.stop(); g.disconnect(context.destination); note = null; g = null;}, 1000);
+			}
+		}
+		e.target.style.backgroundColor = (seek == e.target.time) ? (e.target.noteOn ? "yellow" : "yellowgreen") : (e.target.noteOn ? "darkred" : "lavender");
+	}
+	function noteDown(e){
+		is_mouse_down = true;
+		setNoteOn = !e.target.noteOn;
+		noteEnter(e);
+	}
+	function noteLeave(e){
+		e.target.style.backgroundColor = (seek == e.target.time) ? (e.target.noteOn ? "yellow" : "yellowgreen") : (e.target.noteOn ? "red" : "thistle");
+	}
+	var pitches = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+	for(var row = 0, octave = 6; octave >= 2; --octave){
+		for(var i = 11; i >= 0; --i, ++row, ++num_rows){
+			var row_element = document.createElement("tr");
+			table.appendChild(row_element);
+			var cell_sider_element = document.createElement("td");
+			cell_sider_element.innerHTML = pitches[i] + octave;
+			cell_sider_element.style.fontSize = "10px";
+			if((octave == 4)&&(i == 0))cell_sider_element.style.backgroundColor = "lightblue";
+			row_element.appendChild(cell_sider_element);
+			var time = 0;
+			for (var beat = 0; beat < 16; ++beat){
+				for (var x = 0; x < 8; ++x, ++time){
+					var cell_element = document.createElement("td");
+					row_element.appendChild(cell_element);
+					var div_element = document.createElement("div");
+					addListener(div_element, "mouseenter", noteEnter);
+					addListener(div_element, "mousedown", noteDown);
+					addListener(div_element, "mouseleave", noteLeave);
+					div_element.style.backgroundColor = (time == 0) ? "yellowgreen" : "thistle";
+					div_element.style.width = div_element.style.height = "1em";
+					div_element.noteOn = false;
+					div_element.time = time;
+					div_element.pitch = row;
+					div_element.id = "NOTE_"+time+"_"+row;
+					cell_element.appendChild(div_element);
+					if(row==0)num_time_cells += 1;
+				}
+				if (row == 0){
+					var cell_bar_element = document.createElement("td");
+					cell_bar_element.rowSpan = 1000;
+					cell_bar_element.width = "2px";
+					cell_bar_element.style.backgroundColor = "dimgrey";
+					row_element.appendChild(cell_bar_element);
+				}
+			}
+		}
+	}
+	function generateCode(){
+		var code = String.fromCharCode(tempo-40+0x20);
+		var detectedNotes = [];
+		for(var time = 0; time <= num_time_cells; ++time){
+			for(var row = 0; row < num_rows; ++row){
+				var div_element = document.getElementById("NOTE_"+time+"_"+row);
+				if((div_element != null) && div_element.noteOn){
+					if(detectedNotes[row] == null){
+						detectedNotes[row] = {time: time, duration: 0};
+					}
+					else{
+						detectedNotes[row].duration++;
+					}
+				}
+				else{
+					if(detectedNotes[row] != null){
+						code+=String.fromCharCode(row+0x20)+String.fromCharCode(detectedNotes[row].time+0x20)+String.fromCharCode(detectedNotes[row].duration+0x20);
+						detectedNotes[row] = null;
+					}
+				}
+			}
+		}
+		return LZString.compressToUTF16(code);
+	}
+	function copyCode(){
+		var codeBox = document.getElementById("codeBox");
+		codeBox.focus();
+		codeBox.select();
+		document.execCommand('copy');
+		if (window.getSelection) {window.getSelection().removeAllRanges();}
+		else if (document.selection) {document.selection.empty();}
+	}
+	function showCode(){
+		document.getElementById("CodeCurtain").style.display = "inline";
+		var code = generateCode();
+		document.getElementById("codeBox").value = code;
+		var ccc = document.getElementById("codeCharCount");
+		ccc.innerHTML = code.length + " of 200";
+		ccc.style.color = (code.length >= 200) ? "red" : "black";
+	}
+	function clearAllNotes(){
+		for(var time = 0; time <= num_time_cells; ++time){
+			for(var row = 0; row < num_rows; ++row){
+				var div_element = document.getElementById("NOTE_"+time+"_"+row);
+				if(div_element == null)continue;
+				div_element.noteOn = false;
+				div_element.style.backgroundColor = "thistle";
+			}
+		}
+	}
+	function hideCode(){
+		document.getElementById("CodeCurtain").style.display = "none";
+		var codeBox = document.getElementById("codeBox");
+		var code = LZString.decompressFromUTF16(codeBox.value);
+		document.getElementById("Tempo").value = tempo = code.charCodeAt(0)-0x20+40;
+		rate = 500 * (15/tempo);
+		if ((code == null) || (code.length = '')){
+			alert("Invalid Code");
+			return;
+		}
+		clearAllNotes();
+		for(var i = 1; i+2 < code.length; i+=3){
+			var row = code.charCodeAt(i)-0x20;
+			var time = code.charCodeAt(i+1)-0x20;
+			var duration = code.charCodeAt(i+2)-0x20;
+			
+			for (var noteTime = time; noteTime <= time+duration; ++noteTime){
+				var div_element = document.getElementById("NOTE_"+noteTime+"_"+row);
+				div_element.noteOn = true;
+				div_element.style.backgroundColor = "red";
+			}
+		}
+	}
+	
+	var url = window.location.href;
+	var loaded_data = url.split('html#')[1];
+	if (loaded_data != null){
+		
+	}
+	window.onbeforeunload = function (){
+		return '';
+	}
+</script>
