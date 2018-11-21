@@ -1,5 +1,4 @@
 <head>
-	<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/pieroxy/lz-string/libs/lz-string.js"></script>
 	<style>
 		table, th, td {
 			user-select: none;
@@ -34,7 +33,7 @@
 <script>
 	var table = document.getElementById("NoteTable");
 	var is_playing = false;
-	var context = new AudioContext();
+	var context = new (window.AudioContext || window.webkitAudioContext);
 	var seek = 0;
 	var prev_seek = 0;
 	var num_rows = 0;
@@ -188,28 +187,23 @@
 		}
 	}
 	function generateCode(){
-		var code = String.fromCharCode(tempo-40+0x20);
-		var detectedNotes = [];
-		for(var time = 0; time <= num_time_cells; ++time){
+		var code = String.fromCharCode(tempo-40+0x22);
+		for(var beat = 0; beat < 16; ++beat){
+			if(beat > 0)code+=String.fromCharCode(0x21);
 			for(var row = 0; row < num_rows; ++row){
-				var div_element = document.getElementById("NOTE_"+time+"_"+row);
-				if((div_element != null) && div_element.noteOn){
-					if(detectedNotes[row] == null){
-						detectedNotes[row] = {time: time, duration: 0};
-					}
-					else{
-						detectedNotes[row].duration++;
-					}
+				var note_beat_ON_OFFS = 0;
+				for(var time = 0; time < 8; ++time){
+					note_beat_ON_OFFS <<= 1;
+					var div_element = document.getElementById("NOTE_"+(beat*8+time)+"_"+row);
+					if((div_element != null) && div_element.noteOn)
+						note_beat_ON_OFFS |= 1;
 				}
-				else{
-					if(detectedNotes[row] != null){
-						code+=String.fromCharCode(row+0x20)+String.fromCharCode(detectedNotes[row].time+0x20)+String.fromCharCode(detectedNotes[row].duration+0x20);
-						detectedNotes[row] = null;
-					}
+				if(note_beat_ON_OFFS!=0){code += String.fromCharCode((note_beat_ON_OFFS | (row << 8))+0x22);
+				console.log(note_beat_ON_OFFS.toString(16))
 				}
 			}
 		}
-		return LZString.compressToUTF16(code);
+		return code;
 	}
 	function copyCode(){
 		var codeBox = document.getElementById("codeBox");
@@ -240,23 +234,32 @@
 	function hideCode(){
 		document.getElementById("CodeCurtain").style.display = "none";
 		var codeBox = document.getElementById("codeBox");
-		var code = LZString.decompressFromUTF16(codeBox.value);
+		var code = codeBox.value;
 		if ((code == null) || (code.length = '')){
 			alert("Invalid Code");
 			return;
 		}
-		document.getElementById("Tempo").value = tempo = code.charCodeAt(0)-0x20+40;
+		document.getElementById("Tempo").value = tempo = code.charCodeAt(0)-0x22+40;
 		rate = 500 * (15/tempo);
 		clearAllNotes();
-		for(var i = 1; i+2 < code.length; i+=3){
-			var row = code.charCodeAt(i)-0x20;
-			var time = code.charCodeAt(i+1)-0x20;
-			var duration = code.charCodeAt(i+2)-0x20;
-			
-			for (var noteTime = time; noteTime <= time+duration; ++noteTime){
-				var div_element = document.getElementById("NOTE_"+noteTime+"_"+row);
-				div_element.noteOn = true;
-				div_element.style.backgroundColor = "red";
+		var beat = 0;
+		for(var i = 1; i < code.length; ++i){
+			var rawChar = code.charCodeAt(i);
+			if(rawChar == 0x21){
+				++beat;
+				continue;
+			}
+			rawChar -= 0x22;
+			var row = rawChar >> 8;
+			var noteOns = rawChar & 0xFF;
+			console.log(noteOns.toString(16));
+			for (var j = 7; j >= 0; --j, noteOns >>= 1){
+				if(noteOns & 1){
+					var div_element = document.getElementById("NOTE_"+(beat*8+j)+"_"+row);
+					if(div_element == null)continue;
+					div_element.noteOn = true;
+					div_element.style.backgroundColor = "red";
+				}
 			}
 		}
 	}
