@@ -5,6 +5,18 @@
 			border: 1px solid black;
 			padding: 0;
 		}
+		.soundShapeButton{
+			width: 2em;
+			height: 2em;
+			border: 2px solid black;
+			border-radius: 0.75em;
+			background-size: 80%;
+			background-position: 50% 50%;
+			background-repeat: no-repeat;
+			background-color: beige;
+			position: fixed;
+			bottom: 2em;
+		}
 	</style>
 	<title>Melody Maker</title>
 </head>
@@ -15,7 +27,15 @@
 	<button onclick="playButtonClicked(this)" style="position: fixed; bottom: 3em; left: 3em;">Play</button>
 	<span style="position: fixed; bottom: 2.6em; left: 6em;">Tempo:</span>
 	<input type="number" id="Tempo" onchange="tempo = this.value; rate = 500 * (15/tempo);" style="position: fixed; bottom: 3em; left: 12em;" min="40" max="200" value="120">
-	<button onclick="showCode()" style="position: fixed; bottom: 3em; left: 18em;" >Edit by Code</button>
+	<div class="soundShapeButton" id="TriShapeButton" style="background-image: url('https://image.flaticon.com/icons/svg/35/35846.svg'); left: 21em;" onclick="SetWaveShape(2);">
+	</div>
+	<div class="soundShapeButton" id="SquareShapeButton" style="background-image: url('https://image.flaticon.com/icons/svg/35/35472.svg'); left: 18em;"onclick="SetWaveShape(1);">
+	</div>
+	<div class="soundShapeButton" id="SineShapeButton" style="background-image: url('https://image.flaticon.com/icons/svg/35/35691.svg'); left: 15em; background-color: skyblue;"onclick="SetWaveShape(0);">
+	</div>
+	<div class="soundShapeButton" id="SawShapeButton" style="background-image: url('https://image.flaticon.com/icons/svg/35/35474.svg'); left: 24em;"onclick="SetWaveShape(3);">
+	</div>
+	<button onclick="showCode()" style="position: fixed; bottom: 3em; left: 32.5em;" >Edit by Code</button>
 	<div id="CodeCurtain" style="display:none; background-color: rgba(255,255,255,0.75);width: 100%;height: 100%;align-content: center;position: fixed;left: 0;top: 0;">
 		<center>
 			<div style="width: 50%;background-color: pink;border: 5px outset orange;border-radius: 20px;padding: 1em; margin-top: 12em;">
@@ -55,6 +75,41 @@
 		}
 		seek = s;
 	}
+	var WaveShape = "sine";
+	function SetWaveShape(ShapeId){
+		switch(ShapeId)
+			{
+			case 0:
+				WaveShape = "sine";
+				document.getElementById("TriShapeButton").style.backgroundColor = null;
+				document.getElementById("SquareShapeButton").style.backgroundColor = null;
+				document.getElementById("SineShapeButton").style.backgroundColor = 'skyblue';
+				document.getElementById("SawShapeButton").style.backgroundColor = null;
+				break;
+			case 1:
+				WaveShape = "square";
+				document.getElementById("TriShapeButton").style.backgroundColor = null;
+				document.getElementById("SquareShapeButton").style.backgroundColor = 'skyblue';
+				document.getElementById("SineShapeButton").style.backgroundColor = null;
+				document.getElementById("SawShapeButton").style.backgroundColor = null;
+				break;
+			case 2:
+				WaveShape = "triangle";
+				document.getElementById("TriShapeButton").style.backgroundColor = 'skyblue';
+				document.getElementById("SquareShapeButton").style.backgroundColor = null;
+				document.getElementById("SineShapeButton").style.backgroundColor = null;
+				document.getElementById("SawShapeButton").style.backgroundColor = null;
+				break;
+			case 3:
+				WaveShape = "sawtooth";
+				document.getElementById("TriShapeButton").style.backgroundColor = null;
+				document.getElementById("SquareShapeButton").style.backgroundColor = null;
+				document.getElementById("SineShapeButton").style.backgroundColor = null;
+				document.getElementById("SawShapeButton").style.backgroundColor = 'skyblue';
+				break;
+			}
+		
+	}
 	var next_wait = Date.now();
 	function play_cell(){
 		if(!is_playing)return;
@@ -67,7 +122,7 @@
 			if((div_element != null) && div_element.noteOn){
 				if(notes[row] == null){
 					notes[row] = context.createOscillator();
-					notes[row].type = "square";
+					notes[row].type = WaveShape;
 					notes[row].gain = context.createGain();
 					notes[row].gain.connect(context.destination);
 					notes[row].gain.gain.value = 0.1;
@@ -128,7 +183,7 @@
 		if (is_mouse_down){e.target.noteOn = setNoteOn;
 			if (setNoteOn){
 				var note = context.createOscillator();
-				note.type = "square";
+				note.type = WaveShape;
 				note.frequency.value = get_frequency(e.target);
 				var g = context.createGain();
 				g.connect(context.destination);
